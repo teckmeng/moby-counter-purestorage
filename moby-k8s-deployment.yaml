@@ -1,0 +1,149 @@
+# Portworx StorageClass
+#############################################
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+    name: px-postgres-sc
+provisioner: kubernetes.io/portworx-volume
+reclaimPolicy: Delete
+parameters:
+   repl: "1"
+
+---
+
+# PVC for Postgres
+#############################################
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+   name: postgres-data
+spec:
+   storageClassName: px-postgres-sc
+   accessModes:
+     - ReadWriteOnce
+   resources:
+     requests:
+       storage: 10Gi
+
+---
+
+# ConfigMap for Postgres
+#############################################
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: example-config
+data:
+  EXAMPLE_DB_HOST: postgres://postgres@postgres/example?sslmode=disable
+  EXAMPLE_DB_KIND: postgres
+  PGDATA: /var/lib/postgresql/data/pgdata
+  POSTGRES_USER: postgres
+  POSTGRES_PASSWORD: admin123
+
+---
+
+# Postgres Deployment with Portworx / STORK
+#############################################
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+spec:
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      schedulerName: stork
+      containers:
+      - image: "postgres:10.1"
+        name: postgres
+        envFrom:
+        - configMapRef:
+            name: example-config
+        ports:
+        - containerPort: 5432
+          name: postgres
+        volumeMounts:
+        - name: postgres-data
+          mountPath: /var/lib/postgresql/data
+      volumes:
+      - name: postgres-data
+        persistentVolumeClaim:
+          claimName: postgres-data
+
+---
+
+# Service for Postgres
+#############################################
+apiVersion: v1
+kind: Service
+metadata:
+  name: pg-service
+spec:
+  selector:
+    app: postgres
+  ports:
+  - protocol: TCP
+    port: 5432
+    targetPort: 5432
+
+
+---
+
+# Web front counter deployment
+#############################################
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: k8s-counter-deployment
+  labels:
+    app: k8s-counter
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: k8s-counter
+  template:
+    metadata:
+      labels:
+        app: k8s-counter
+    spec:
+      containers:
+      - name: k8s-counter
+        image: teckmeng/moby-counter:v1.1
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 80
+        env:
+        - name: USE_POSTGRES_HOST
+          value: "pg-service" #Update to your PG Host
+        - name: USE_POSTGRES_PORT
+          value: "5432" #Update to your PG Port
+        - name: POSTGRES_USER
+          value: "postgres" #Update to your PG User
+        - name: POSTGRES_PASSWORD # TODO: use secret for password
+          value: "admin123" #Update to your PG Password
+
+---
+
+# LB Service for Web front counter
+#############################################
+apiVersion: v1
+kind: Service
+metadata:
+  name: k8s-counter-service
+spec:
+  type: LoadBalancer
+  selector:
+    app: k8s-counter
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 80
+    nodePort: 30123
+    name: k8s-counter-web
+

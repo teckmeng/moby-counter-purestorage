@@ -1,36 +1,17 @@
 ## moby-counter
 
-A simple app that is used to demonstrate keeping state inside a docker-compose app.
+A simple stateful K8s app 
 
 ## run
+* install PX-Enterprise in your K8s cluster
+* download the moby-k8s-deployment.yaml to your k8s cluste
+* kubectl apply -f moby-k8s-deployment.yaml
+* have fun!
 
-```
-$ docker-compose build
-$ docker-compose up
-```
+## background
+* Front end is a simple web that tracks the position of the mouse clicks. It also tracks the total number times it's clicked. These data are then stored in a backend database
+* backend is a simple postgresql database
 
-This will expose the web application on port 80.
-
-## Database backends
-
-There are two versions of the moby app - one that saves data to Redis and one that saves it to Postgres.
-
-### Redis
-
-The default is to use the Redis connection - the envrionment variables that control this:
-
- * USE_REDIS_HOST
- * USE_REDIS_PORT
-
-### Postgres
-
-If any of the following variables are defined - it will force the app to use the Postgres backend:
-
- * USE_POSTGRES_HOST
- * USE_POSTGRES_PORT
- * POSTGRES_USER
- * POSTGRES_PASSWORD
- 
 ## License
 
 MIT
