@@ -1,4 +1,4 @@
-## moby-counter
+## moby-counter-purestorage
 
 A simple stateful K8s app 
 
