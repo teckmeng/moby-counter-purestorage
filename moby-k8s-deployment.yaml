@@ -11,6 +11,20 @@ parameters:
 
 ---
 
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: px-sharedv4-sc
+provisioner: kubernetes.io/portworx-volume
+parameters:
+  #openstorage.io/auth-secret-name: px-user-token
+  #openstorage.io/auth-secret-namespace: portworx
+  repl: "2"
+  sharedv4: "true"
+allowVolumeExpansion: true
+
+---
+
 # PVC for Postgres
 #############################################
 kind: PersistentVolumeClaim
@@ -24,6 +38,25 @@ spec:
    resources:
      requests:
        storage: 10Gi
+
+
+---
+
+# PVC for front end web
+#############################################
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: nfs-pv-claim
+  labels:
+  annotations:
+    volume.beta.kubernetes.io/storage-class: px-sharedv4-sc
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 1Gi
 
 ---
 
@@ -127,6 +160,13 @@ spec:
           value: "postgres" #Update to your PG User
         - name: POSTGRES_PASSWORD # TODO: use secret for password
           value: "admin123" #Update to your PG Password
+        volumeMounts:
+        - name: postgres-nfs
+          mountPath: /sharedrive
+      volumes:
+      - name: postgres-nfs
+        persistentVolumeClaim:
+          claimName: nfs-pv-claim
 
 ---
 
